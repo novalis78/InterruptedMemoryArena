@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""trip: look things up for the group trip, and submit travelers' plans.
+
+  trip restaurants CITY        every restaurant in CITY: name, average cost per person, cuisines, rating
+  trip hotels CITY             every accommodation in CITY: price per night, room type, house rules, limits, rating
+  trip attractions CITY        attractions in CITY
+  trip submit NAME FILE        submit NAME's complete plan (FILE, or - for stdin); the last one submitted counts
+  trip format                  the plan format submit expects
+
+City names are exact (for example: trip restaurants "St. Petersburg").
+"""
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+FORMAT = """=== NAME's Plan ===
+Day 1:
+Current City: from ORIGIN to DESTINATION
+Transportation: Flight Number: F0000000, from ORIGIN to DESTINATION, Departure Time: 00:00, Arrival Time: 00:00
+Breakfast: RESTAURANT, CITY
+Attraction: ATTRACTION, CITY;ATTRACTION, CITY
+Lunch: RESTAURANT, CITY
+Dinner: RESTAURANT, CITY
+Accommodation: ACCOMMODATION, CITY
+
+Day 2:
+...one block per day, every field on every day. Use - for a field that doesn't apply
+(for example Accommodation on the last day, or Transportation on a day without travel).
+Names must be exactly as `trip` lists them. No prices, ratings or comments in the plan."""
+
+
+def cfg():
+    try:
+        return json.load(open(os.path.expanduser('~/.trip')))
+    except (OSError, ValueError):
+        sys.exit('trip: not set up (~/.trip missing)')
+
+
+def post(path, body):
+    c = cfg()
+    req = urllib.request.Request(c['url'] + path, data=json.dumps(body).encode(), method='POST',
+                                 headers={'content-type': 'application/json', 'x-trip-token': c['token']})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return 0, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return 1, e.read().decode()
+    except OSError as e:
+        return 2, f'trip: the trip server is not answering ({e})'
+
+
+def main(a):
+    if not a or a[0] in ('-h', '--help', 'help'):
+        print(__doc__.strip())
+        return 0
+    if a[0] == 'format':
+        print(FORMAT)
+        return 0
+    if a[0] in ('restaurants', 'hotels', 'attractions'):
+        if len(a) < 2:
+            sys.exit(f'usage: trip {a[0]} CITY')
+        rc, out = post('/tool', {'tool': a[0], 'args': {'city': ' '.join(a[1:])}})
+        print(out)
+        return rc
+    if a[0] == 'submit':
+        if len(a) != 3:
+            sys.exit('usage: trip submit NAME FILE   (FILE can be - for stdin)')
+        text = sys.stdin.read() if a[2] == '-' else open(a[2]).read()
+        rc, out = post('/submit', {'name': a[1], 'plan': text})
+        print(out)
+        return rc
+    sys.exit(f'trip: unknown command {a[0]!r} (try: trip help)')
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
