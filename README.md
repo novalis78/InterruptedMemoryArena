@@ -93,6 +93,6 @@ python3 runner/summarize.py RUN
 
 ## Credits
 
-The tasks come from MemoryArena's group travel planner (dataset under CC BY 4.0). The four interruption types follow
-InterruptBench's taxonomy. Neither project's code is included or modified here. Please cite both projects if you use
+The tasks come from MemoryArena's group travel planner (dataset under CC BY 4.0). The four interruption types are
+adapted from InterruptBench's taxonomy, aimed at memory across sessions. Neither project's code is included or modified here. Please cite both projects if you use
 this benchmark.
